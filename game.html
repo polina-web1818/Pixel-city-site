@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Пиксель-Сити — настольная игра о пути веб-дизайнера">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Пиксель-Сити</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a design-tool canvas — the board is a frame on a dot-grid canvas, the side panel is the inspector */
+:root{
+  --bg:#E9ECF2; --canvas-dot:#C9CFDB; --surface:#FFFFFF; --surface-2:#F4F6FA;
+  --ink:#151820; --muted:#5F6676; --line:#D3D8E2; --accent:#2F6BFF; --accent-ink:#FFFFFF;
+  --good:#1E9E5A; --bad:#D33A3A;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12141A; --canvas-dot:#272B35; --surface:#1C1F27; --surface-2:#232731;
+  --ink:#ECEEF4; --muted:#9AA2B2; --line:#323744; --accent:#5D8DFF; --accent-ink:#0B1020;
+  --good:#3CC57E; --bad:#FF6B6B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12141A; --canvas-dot:#272B35; --surface:#1C1F27; --surface-2:#232731;
+  --ink:#ECEEF4; --muted:#9AA2B2; --line:#323744; --accent:#5D8DFF; --accent-ink:#0B1020;
+  --good:#3CC57E; --bad:#FF6B6B; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1.2px);background-size:18px 18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:700;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:6px 10px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* ---------- Setup ---------- */
+#setup{max-width:640px;margin:4vh auto 0;display:grid;gap:22px}
+.frame-tag{font-family:var(--f-mono);font-size:12px;color:var(--accent)}
+.sel{position:relative;border:1.5px solid var(--accent);padding:18px 20px}
+.sel i{position:absolute;width:9px;height:9px;background:var(--surface);border:1.5px solid var(--accent)}
+.sel i:nth-child(1){left:-5px;top:-5px}.sel i:nth-child(2){right:-5px;top:-5px}
+.sel i:nth-child(3){left:-5px;bottom:-5px}.sel i:nth-child(4){right:-5px;bottom:-5px}
+.sel .dim{position:absolute;left:50%;bottom:-26px;transform:translateX(-50%);background:var(--accent);color:var(--accent-ink);font-family:var(--f-mono);font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap}
+#setup h1{font-size:clamp(34px,8vw,60px);line-height:1;font-weight:900;letter-spacing:-.02em}
+#setup .lead{color:var(--muted);max-width:56ch;margin:8px 0 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.setup-grid{display:grid;gap:16px}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.mode{display:block;border:1.5px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;background:var(--surface-2)}
+.mode:has(input:checked){border-color:var(--accent)}
+.mode input{accent-color:var(--accent);margin:0 6px 0 0}
+.mode b{font-weight:800}
+.mode span{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+.names{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.names label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface-2)}
+.names input{border:0;background:transparent;width:100%;min-width:0;font:inherit;color:var(--ink);padding:4px 0}
+.swatch{width:14px;height:14px;border-radius:50%;flex:none}
+.count{display:flex;align-items:center;gap:10px}
+.count output{font-family:var(--f-mono);font-size:20px;min-width:2ch;text-align:center}
+
+/* ---------- Game layout ---------- */
+#game{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;max-width:1360px;margin:0 auto;align-items:start}
+@media (max-width:980px){#game{grid-template-columns:minmax(0,1fr)}}
+.board-wrap{min-width:0;container-type:inline-size;container-name:board}
+#board{display:grid;grid-template-columns:1.45fr repeat(9,1fr) 1.45fr;grid-template-rows:1.45fr repeat(9,1fr) 1.45fr;
+  aspect-ratio:1;width:100%;max-width:min(100%,86vh);margin:0 auto;gap:2px;background:var(--line);border:2px solid var(--line);border-radius:10px;overflow:hidden}
+.cell{position:relative;background:var(--surface);border:0;padding:0;display:flex;flex-direction:column;align-items:stretch;text-align:center;overflow:hidden;min-width:0}
+.cell:hover{background:var(--surface-2)}
+.cell.picked{box-shadow:inset 0 0 0 2px var(--accent)}
+.cell .band{height:22%;min-height:5px;background:var(--dc,transparent);flex:none}
+.cell .lbl{font-size:clamp(7px,1.25cqi,11px);font-weight:700;line-height:1.15;padding:3px 2px 0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;hyphens:auto}
+.cell .ab{display:none;font-family:var(--f-mono);font-size:clamp(7px,2.2cqi,10px);font-weight:700;padding-top:2px}
+.cell .pr{font-family:var(--f-mono);font-size:clamp(7px,1.1cqi,10px);color:var(--muted);margin-top:auto;padding-bottom:2px}
+.cell .own{position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--oc,transparent)}
+.cell .pips{position:absolute;top:2px;right:2px;display:flex;gap:1px}
+.cell .pips b{width:5px;height:5px;background:var(--ink);border-radius:1px}
+.cell .pips b.mc{width:8px;background:var(--accent)}
+.cell .tok{position:absolute;left:2px;right:2px;bottom:6px;display:flex;flex-wrap:wrap;justify-content:center;gap:2px}
+.cell .tok b{width:clamp(6px,1.5cqi,12px);aspect-ratio:1;border-radius:50%;border:1.5px solid var(--surface);box-shadow:0 0 0 1px var(--ink)}
+.cell.corner{background:var(--surface-2)}
+.cell.corner .lbl{font-family:var(--f-display);font-size:clamp(7px,1.4cqi,12px);font-weight:700;-webkit-line-clamp:2;padding-top:8%}
+.cell.corner .note{font-size:clamp(6px,1cqi,10px);color:var(--muted);padding:0 3px}
+.cell.special .band{background:repeating-linear-gradient(45deg,var(--line) 0 3px,transparent 3px 6px)}
+.cell.t-crisis .band{background:var(--bad)}
+.cell.t-insp .band{background:var(--good)}
+.cell.t-order .band{background:var(--accent)}
+.center{grid-area:2/2/11/11;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4cqi;padding:4cqi;min-width:0;
+  background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1.2px);background-size:14px 14px}
+.center .sel{padding:2.4cqi 3.6cqi;background:var(--surface)}
+.center h2{font-size:clamp(16px,6cqi,52px);font-weight:900;letter-spacing:-.02em;line-height:1}
+.center .who{display:flex;align-items:center;gap:8px;font-weight:800;font-size:clamp(12px,2.4cqi,18px)}
+.dice{display:flex;gap:2.4cqi}
+.die{width:clamp(30px,8cqi,64px);aspect-ratio:1;background:var(--surface);border:1.5px solid var(--ink);border-radius:18%;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:14%}
+.die b{width:70%;aspect-ratio:1;border-radius:50%;background:var(--ink);place-self:center;visibility:hidden}
+.die b.on{visibility:visible}
+.die.roll{animation:shake .35s ease}
+@keyframes shake{25%{transform:rotate(-14deg)}60%{transform:rotate(10deg)}}
+@media (prefers-reduced-motion:reduce){.die.roll{animation:none}}
+.center .last{font-size:clamp(11px,1.7cqi,14px);color:var(--muted);text-align:center;max-width:50ch}
+@container board (max-width:620px){
+  .cell .lbl{display:none}.cell .ab{display:block}.cell .pr{display:none}
+  .cell.corner .lbl{display:-webkit-box;font-size:7px}.cell.corner .note{display:none}
+  .center .last{display:none}
+}
+
+/* ---------- Inspector panel ---------- */
+#panel{display:grid;gap:12px;min-width:0}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.pane h3{font-size:13px;font-weight:700;margin-bottom:10px;letter-spacing:.01em}
+.turn-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.turn-head .swatch{width:18px;height:18px}
+.turn-head h3{margin:0;font-size:17px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--surface-2);border-radius:8px;padding:8px}
+.stat .v{font-family:var(--f-mono);font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.grade{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:700;border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:1px 6px}
+.event{border:1.5px solid var(--accent)}
+.event.crisis{border-color:var(--bad)}
+.event.insp{border-color:var(--good)}
+.event .kind{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.event.crisis .kind{color:var(--bad)}.event.insp .kind{color:var(--good)}.event .kind{color:var(--accent)}
+.event h4{font-family:var(--f-display);font-size:16px;margin:6px 0;text-wrap:balance}
+.event p{margin:0 0 12px;color:var(--muted)}
+.orders{display:grid;gap:8px}
+.order{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px;background:var(--surface-2)}
+.order .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.order b{font-weight:800}
+.order .rw{font-family:var(--f-mono);font-size:12px;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px;color:#fff;background:var(--c)}
+.chip.miss{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--c)}
+.order .st{font-size:12px;color:var(--muted)}
+.players{display:grid;gap:6px}
+.pl{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:6px 8px;border-radius:8px;font-size:13px}
+.pl.now{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
+.pl.out{opacity:.45;text-decoration:line-through}
+.pl .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .mono{font-size:12px}
+.upg{display:grid;gap:6px}
+.upg .u{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.upg .u span{min-width:0}
+.log{max-height:200px;overflow:auto;display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.log div:first-child{color:var(--ink)}
+.info dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:13px}
+.info dt{color:var(--muted)}
+.info dd{margin:0}
+.muted{color:var(--muted);font-size:13px}
+details.rules summary{cursor:pointer;font-weight:700;font-size:13px}
+details.rules ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--muted);display:grid;gap:4px}
+.topbar{max-width:1360px;margin:0 auto 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar .brand{font-family:var(--f-display);font-weight:900;font-size:18px}
+
+#win{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:grid;place-items:center;padding:20px;z-index:20}
+#win .card{max-width:420px;text-align:center;display:grid;gap:12px;border:1.5px solid var(--accent)}
+#win h2{font-size:26px}
+</style>
+</head>
+<body>
+
+
+<section id="setup">
+  <div>
+    <div class="frame-tag">Frame · Главная</div>
+    <div class="sel" style="margin-top:6px">
+      <i></i><i></i><i></i><i></i>
+      <h1>Пиксель-Сити</h1>
+      <p class="lead">Настольная игра про путь веб-дизайнера: от стажёра до арт-директора. Осваивайте навыки, берите заказы, переживайте дедлайны. Всё происходит только на поле.</p>
+      <span class="dim">2–8 игроков · 60–90 мин</span>
+    </div>
+  </div>
+  <div class="card setup-grid" style="margin-top:14px">
+    <div>
+      <div class="eyebrow" style="margin-bottom:8px">Режим</div>
+      <div class="modes">
+        <label class="mode"><input type="radio" name="mode" id="mode-classic" value="classic" checked><b>Классика</b><span>Старт 1500 px. Победа — 100 Репутации.</span></label>
+        <label class="mode"><input type="radio" name="mode" id="mode-blitz" value="blitz"><b>Блиц</b><span>Старт 2500 px и 2 случайных навыка. Победа — 50 Репутации.</span></label>
+      </div>
+    </div>
+    <div>
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div class="eyebrow">Игроки</div>
+        <div class="count">
+          <button class="btn sm" id="minus" aria-label="Меньше игроков">−</button>
+          <output id="pcount">4</output>
+          <button class="btn sm" id="plus" aria-label="Больше игроков">+</button>
+        </div>
+      </div>
+      <div class="names" id="names"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="start">Начать игру</button>
+      <button class="btn" id="resume" hidden>Продолжить сохранённую</button>
+    </div>
+  </div>
+</section>
+
+<div class="topbar" id="topbar" hidden>
+  <span class="brand">Пиксель-Сити</span>
+  <button class="btn sm" id="newgame">Новая игра</button>
+</div>
+<main id="game" hidden>
+  <div class="board-wrap"><div id="board"></div></div>
+  <aside id="panel"></aside>
+</main>
+<div id="win" hidden></div>
+
+<script>
+const DIST={typo:{n:'Типографика',c:'#9A6B45'},color:{n:'Цвет',c:'#E0457B'},ux:{n:'UX',c:'#2696BE'},ui:{n:'UI',c:'#E67E14'},adapt:{n:'Адаптив',c:'#D7263D'},motion:{n:'Motion',c:'#C99A0E'},d3:{n:'3D',c:'#2E9E5B'},brand:{n:'Брендинг',c:'#4453D6'}};
+const C=(t,n,ab,o={})=>({t,n,ab,...o});
+const CELLS=[
+C('start','Новый семестр','СТАРТ',{note:'+200 px стипендия'}),
+C('skill','Шрифтовые пары','Шр',{d:'typo',p:60,info:'Сочетание двух шрифтов: один для заголовков, другой для текста.'}),
+C('order','Заказ','ЗАК'),
+C('skill','Модульные сетки','Сетк',{d:'typo',p:60,info:'Колонки и отступы, по которым выравнивается вся страница.'}),
+C('tax','Подписка на софт','−100',{amt:100}),
+C('plat','Behance','Bē',{p:200}),
+C('skill','Палитры','Пал',{d:'color',p:100,info:'Набор цветов проекта: основной, акцентный, нейтральные.'}),
+C('insp','Вдохновение','ВДХ'),
+C('skill','Контраст и доступность','Конт',{d:'color',p:100,info:'Текст должен читаться: стандарт WCAG требует контраст от 4.5:1.'}),
+C('skill','Цветовые системы','ЦвС',{d:'color',p:120,info:'Цвета как токены: одна переменная — во всём интерфейсе.'}),
+C('jail','Выгорание','ВЫГ',{note:'просто в гостях'}),
+C('skill','Интервью с пользователями','Инт',{d:'ux',p:140,info:'Разговор с реальными людьми до начала дизайна.'}),
+C('serv','Хостинг','Хост',{p:150}),
+C('skill','CJM','CJM',{d:'ux',p:140,info:'Customer Journey Map — карта шагов клиента от интереса до покупки.'}),
+C('skill','Юзабилити-тесты','Тест',{d:'ux',p:160,info:'Наблюдение, как люди пользуются прототипом.'}),
+C('plat','Dribbble','Drb',{p:200}),
+C('skill','Компоненты','Комп',{d:'ui',p:180,info:'Кнопки, поля, карточки — повторяемые блоки интерфейса.'}),
+C('order','Заказ','ЗАК'),
+C('skill','Дизайн-система','DS',{d:'ui',p:180,info:'Design system — общий набор компонентов и правил для всего продукта.'}),
+C('skill','Иконки и иллюстрации','Икон',{d:'ui',p:200,info:'Единый стиль графики интерфейса.'}),
+C('conf','Конференция','КОНФ',{note:'+1 энергия'}),
+C('skill','Mobile first','Mob',{d:'adapt',p:220,info:'Сначала дизайн для телефона, потом для больших экранов.'}),
+C('crisis','Кризис','КРЗ'),
+C('skill','Брейкпоинты','BP',{d:'adapt',p:220,info:'Breakpoints — ширины экрана, на которых меняется раскладка.'}),
+C('skill','PWA','PWA',{d:'adapt',p:240,info:'Progressive Web App — сайт, который ставится как приложение.'}),
+C('plat','GitHub','GH',{p:200}),
+C('skill','Микроанимации','Микр',{d:'motion',p:260,info:'Мелкие отклики на действия: нажатие, загрузка, успех.'}),
+C('skill','Lottie','Lott',{d:'motion',p:260,info:'Формат лёгких векторных анимаций для веба и приложений.'}),
+C('serv','Домен','Дом',{p:150}),
+C('skill','Скролл-анимации','Скрл',{d:'motion',p:280,info:'Анимации, привязанные к прокрутке страницы.'}),
+C('gojail','Дедлайн!','ДДЛ',{note:'сразу в Выгорание'}),
+C('skill','Three.js','3js',{d:'d3',p:300,info:'Библиотека для 3D-графики в браузере.'}),
+C('skill','Шейдеры','GLSL',{d:'d3',p:300,info:'Shaders — программы для видеокарты, которые рисуют пиксели.'}),
+C('order','Заказ','ЗАК'),
+C('skill','WebGL-сцены','WGL',{d:'d3',p:320,info:'Целые 3D-миры прямо на странице сайта.'}),
+C('plat','Awwwards','Aw',{p:200}),
+C('insp','Вдохновение','ВДХ'),
+C('skill','Логотип','Лого',{d:'brand',p:350,info:'Знак бренда: должен читаться и в 16 px, и на баннере.'}),
+C('tax','Правки заказчика','−100',{amt:100}),
+C('skill','Айдентика','Айд',{d:'brand',p:400,info:'Identity — весь визуальный язык бренда: логотип, цвета, шрифты.'}),
+];
+const OWNABLE=new Set(['skill','plat','serv']);
+const ORDERS=[
+['Визитка для кофейни',['typo','color'],150,3],
+['Лендинг фитнес-клуба',['color','adapt'],250,5],
+['Портфолио фотографа',['typo','ui'],220,4],
+['Интернет-магазин одежды',['ux','ui','adapt'],450,8],
+['Приложение доставки',['ux','ui','motion'],500,9],
+['Промосайт кроссовок с 3D-моделью',['d3','motion','brand'],800,14],
+['Ребрендинг банка',['brand','ui','typo'],900,15],
+['Сайт школы английского',['ux','color'],260,5],
+['Анимированный лендинг стартапа',['motion','adapt'],380,7],
+['3D-конфигуратор мебели',['d3','ui'],600,11],
+['Айдентика пекарни',['brand','color'],420,8],
+['Мобильный банк',['ux','ui','adapt','typo'],750,13],
+['Сайт музея с 3D-туром',['d3','ux','typo'],700,12],
+['Дизайн-система маркетплейса',['ui','typo','color'],550,10],
+['PWA для фитнес-трекера',['adapt','ux'],400,7],
+['Логотип для блогера',['brand'],180,4],
+['Иконки для приложения',['ui'],120,3],
+['Промо игры на WebGL',['d3','motion'],650,12],
+['Лендинг онлайн-курса',['typo','adapt'],230,4],
+['Сайт ювелирного бренда',['brand','d3','color'],820,14],
+];
+const CRISES=[
+['Заказчик пропал после предоплаты','Сбросьте случайную карту Заказа.',p=>{if(p.hand.length){p.hand.splice(Math.floor(Math.random()*p.hand.length),1)}}],
+['Слетел макет без автосохранения','Пропустите следующий ход.',p=>{p.skip=1}],
+['Подорожала подписка','Заплатите 150 px.',p=>pay(p,null,150)],
+['Ночь перед дедлайном','Отправляйтесь в Выгорание.',p=>sendJail(p)],
+['Плохой отзыв','−3 Репутации.',p=>addRep(p,-3)],
+['Сломался ноутбук','Заплатите 200 px за ремонт.',p=>pay(p,null,200)],
+['«Сделайте логотип побольше»','Бесплатные правки: заплатите 100 px.',p=>pay(p,null,100)],
+['Пропущенный дедлайн','−2 Репутации и −100 px.',p=>{addRep(p,-2);pay(p,null,100)}],
+['Бессонная неделя','−1 Энергия.',p=>{p.en=Math.max(0,p.en-1)}],
+];
+const INSPS=[
+['Работа попала на Awwwards','+5 Репутации.',p=>addRep(p,5)],
+['Вебинар со скидкой','Следующий навык — за полцены.',p=>{p.disc=true}],
+['Отдохнул на выходных','+2 Энергии.',p=>{p.en=Math.min(5,p.en+2)}],
+['Сарафанное радио','Возьмите 2 карты Заказа.',p=>{addOrder(p);addOrder(p)}],
+['Победа в хакатоне','+150 px и +2 Репутации.',p=>{p.px+=150;addRep(p,2)}],
+['Грант на обучение','+200 px.',p=>{p.px+=200}],
+['Ментор поделился опытом','+1 Энергия и +1 Репутация.',p=>{p.en=Math.min(5,p.en+1);addRep(p,1)}],
+['Кейс в подборке Behance','+3 Репутации.',p=>addRep(p,3)],
+];
+const GRADES=[['Стажёр',0],['Джуниор',.2],['Мидл',.45],['Сеньор',.7],['Арт-директор',1]];
+const PCOLORS=['#E4572E','#2E86AB','#A23B72','#3BB273','#F1A208','#6C4AB6','#1B998B','#E84393'];
+const PIPS={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+const SAVE='pixel-city-v2';
+const HIRE=80;
+
+let G=null;
+const $=s=>document.querySelector(s);
+const cp=()=>G.players[G.cur];
+const r6=()=>1+Math.floor(Math.random()*6);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function draw(kind){const key={o:'deckO',c:'deckC',i:'deckI'}[kind];const src={o:ORDERS,c:CRISES,i:INSPS}[kind];if(!G[key].length)G[key]=shuffle(src.map((_,i)=>i));return G[key].pop()}
+function log(m){G.log.unshift(m);G.log=G.log.slice(0,60)}
+function gradeIdx(p){let g=0;GRADES.forEach(([,t],i)=>{if(p.rep>=Math.round(t*G.target))g=i});return g}
+function handLimit(p){return gradeIdx(p)>=1?4:3}
+function addOrder(p){const id=draw('o');p.hand.push(id);if(p.hand.length>handLimit(p)){const d=p.hand.shift();delete G.hired[G.players.indexOf(p)+':'+d];log(`${p.name}: рука полна, сброшен «${ORDERS[d][0]}»`)}}
+function addRep(p,n){const before=gradeIdx(p);p.rep=Math.max(0,p.rep+n);const after=gradeIdx(p);
+  if(after>before&&after<4)log(`${p.name} теперь ${GRADES[after][0]}!`);
+  if(p.rep>=G.target&&G.winner==null)G.winner=G.players.indexOf(p)}
+function pay(from,to,amt){from.px-=amt;if(to)to.px+=amt}
+function sendJail(p){p.pos=10;p.jail=1;G.again=false;log(`${p.name} выгорел и уходит на отдых`)}
+function ownsDistrict(pi,d){return CELLS.every((c,i)=>c.d!==d||G.owner[i]===pi)}
+function rent(i,dice){const c=CELLS[i],o=G.owner[i];
+  if(c.t==='skill'){const base=Math.max(6,Math.round(c.p*.1));const u=G.upg[i]||0;let r=base*[1,3,6,10,16][u];
+    if(!u&&ownsDistrict(o,c.d))r*=2;if(gradeIdx(G.players[o])>=2)r+=20;return r}
+  if(c.t==='plat'){const n=CELLS.filter((x,j)=>x.t==='plat'&&G.owner[j]===o).length;return[25,50,100,200][n-1]}
+  if(c.t==='serv'){const both=CELLS.every((x,j)=>x.t!=='serv'||G.owner[j]===o);return dice*(both?10:4)}
+  return 0}
+
+function newGame(names,mode){
+  G={players:names.map((n,i)=>({name:n||`Игрок ${i+1}`,color:PCOLORS[i],pos:0,px:mode==='blitz'?2500:1500,rep:0,en:3,jail:0,hand:[],skip:0,disc:false,out:false})),
+    cur:0,phase:'roll',owner:{},upg:{},dice:[1,1],dbl:0,again:false,pending:null,log:[],deckO:[],deckC:[],deckI:[],
+    hired:{},target:mode==='blitz'?50:100,mode,winner:null,sel:null,rolled:0};
+  G.players.forEach(p=>{addOrder(p);addOrder(p)});
+  if(mode==='blitz'){const free=shuffle(CELLS.map((c,i)=>i).filter(i=>CELLS[i].t==='skill'));
+    G.players.forEach((p,pi)=>{for(let k=0;k<2;k++){const i=free.pop();G.owner[i]=pi}})}
+  log(`Игра началась. Цель — ${G.target} Репутации. Ходит ${G.players[0].name}.`);
+  show()}
+
+function roll(){const p=cp();if(G.phase!=='roll'||G.pending||G.winner!=null)return;
+  const a=r6(),b=r6();G.dice=[a,b];G.anim=true;const dbl=a===b;
+  if(p.jail){
+    if(dbl){leaveJail(p);log(`${p.name} выбросил дубль и выходит отдохнувшим: +1 энергия`);G.again=false;moveBy(p,a+b)}
+    else{p.jail++;if(p.jail>3){pay(p,null,50);leaveJail(p);log(`${p.name} платит 50 px и выходит: +1 энергия`);moveBy(p,a+b)}
+      else log(`${p.name}: дубля нет (попытка ${p.jail-1} из 3)`)}
+    G.again=false;G.phase='act';return finish()}
+  if(dbl){G.dbl++;if(G.dbl>=3){log(`${p.name}: третий дубль подряд`);sendJail(p);G.phase='act';return finish()}}
+  G.again=dbl;moveBy(p,a+b);G.phase='act';finish()}
+
+function moveBy(p,n){const total=p.pos+n;if(total>=40){const s=200+(gradeIdx(p)>=3?100:0);p.px+=s;p.en=Math.min(5,p.en+1);log(`${p.name} проходит круг: +${s} px и +1 энергия`)}
+  p.pos=total%40;land(p,n)}
+
+function land(p,steps){const i=p.pos,c=CELLS[i];
+  if(OWNABLE.has(c.t)){const o=G.owner[i];
+    if(o==null){G.pending={k:'buy',i}}
+    else if(o!==G.cur&&!G.players[o].out){const owner=G.players[o];const r=rent(i,steps);pay(p,owner,r);
+      log(`${p.name} → ${owner.name}: ${r} px за «${c.n}»`);if(c.t==='plat'){addRep(owner,1)}}
+    return}
+  switch(c.t){
+    case 'order':{addOrder(p);const id=p.hand[p.hand.length-1];G.pending={k:'card',kind:'order',title:ORDERS[id][0],text:'Новый заказ у вас на руке. Сдайте его, когда соберёте нужные направления.'};break}
+    case 'crisis':G.pending={k:'crisis',id:draw('c')};break
+    case 'insp':{const id=draw('i');INSPS[id][2](p);log(`${p.name}: «${INSPS[id][0]}»`);G.pending={k:'card',kind:'insp',title:INSPS[id][0],text:INSPS[id][1]};break}
+    case 'tax':pay(p,null,c.amt);log(`${p.name}: «${c.n}» −${c.amt} px`);break
+    case 'gojail':sendJail(p);break
+    case 'conf':p.en=Math.min(5,p.en+1);log(`${p.name} на конференции: +1 энергия`);break
+  }}
+
+function buy(){const p=cp(),pd=G.pending;if(!pd||pd.k!=='buy')return;const c=CELLS[pd.i];const price=p.disc&&c.t==='skill'?Math.round(c.p/2):c.p;
+  if(p.px<price)return;pay(p,null,price);G.owner[pd.i]=G.cur;if(c.t==='skill'&&p.disc)p.disc=false;
+  if(c.t==='skill'){addRep(p,1)}
+  log(`${p.name} осваивает «${c.n}» за ${price} px${c.t==='skill'?' (+1 Реп.)':''}`);
+  if(c.d&&ownsDistrict(G.cur,c.d)){addRep(p,3);log(`${p.name} собрал район ${DIST[c.d].n}: +3 Реп.`)}
+  G.pending=null;finish()}
+function skipBuy(){G.pending=null;finish()}
+function resolveCrisis(){const p=cp(),pd=G.pending;if(!pd||pd.k!=='crisis')return;const cr=CRISES[pd.id];
+  cr[2](p);log(`${p.name}: «${cr[0]}»`)
+  G.pending=null;finish()}
+function closeCard(){G.pending=null;finish()}
+
+function plan(pi,oid){const key=pi+':'+oid;const hired=G.hired[key]||{};
+  const rows=ORDERS[oid][1].map(d=>{
+    if(CELLS.some((c,i)=>c.d===d&&G.owner[i]===pi))return{d,st:'own'};
+    if(hired[d]!=null)return{d,st:'hired',o:hired[d]};
+    const owners=[...new Set(CELLS.map((c,i)=>c.d===d?G.owner[i]:null).filter(o=>o!=null&&o!==pi&&!G.players[o].out))];
+    return{d,st:owners.length?'need':'none',owners}});
+  return{rows,ready:rows.every(r=>r.st==='own'||r.st==='hired')}}
+function hire(k,d,o){const p=cp();if(G.pending||G.winner!=null)return;const oid=p.hand[k];if(oid==null)return;
+  const owner=G.players[o];if(!owner||owner.out||p.px<HIRE)return;
+  if(!CELLS.some((c,i)=>c.d===d&&G.owner[i]===o))return;
+  const key=G.cur+':'+oid;G.hired[key]=G.hired[key]||{};if(G.hired[key][d]!=null)return;
+  pay(p,owner,HIRE);addRep(owner,1);G.hired[key][d]=o;log(`${p.name} нанимает ${owner.name} (${DIST[d].n}): ${HIRE} px, ему +1★`);finish()}
+function complete(k){const p=cp();if(G.pending||G.winner!=null)return;const oid=p.hand[k];if(oid==null)return;
+  const pl=plan(G.cur,oid);if(!pl.ready||p.en<1)return;const [n,,px,rep]=ORDERS[oid];
+  p.en--;p.hand.splice(k,1);delete G.hired[G.cur+':'+oid];p.px+=px;log(`${p.name} сдаёт «${n}»: −1 энергия, +${px} px, +${rep}★`);addRep(p,rep);finish()}
+
+function upgCost(i){return Math.round(CELLS[i].p/2)}
+function upgrade(i){const p=cp();if(G.pending||G.winner!=null)return;const c=CELLS[i];
+  if(G.owner[i]!==G.cur||!ownsDistrict(G.cur,c.d))return;const u=G.upg[i]||0;if(u>=4)return;const cost=upgCost(i);if(p.px<cost)return;
+  pay(p,null,cost);G.upg[i]=u+1;const r=u+1===4?5:2;log(`${p.name}: ${u+1===4?'Мастер-класс':'Кейс'} на «${c.n}», +${r} Реп.`);addRep(p,r);finish()}
+
+function settle(p){if(p.px>=0)return;
+  const mine=CELLS.map((c,i)=>i).filter(i=>G.owner[i]===G.cur).sort((a,b)=>(G.upg[b]||0)-(G.upg[a]||0));
+  for(const i of mine){while(p.px<0&&(G.upg[i]||0)>0){G.upg[i]--;p.px+=Math.round(upgCost(i)/2)}}
+  for(const i of mine){if(p.px>=0)break;if(G.upg[i])continue;delete G.owner[i];p.px+=Math.round(CELLS[i].p/2);log(`${p.name} продаёт «${CELLS[i].n}» банку`)}
+  if(p.px<0){p.out=true;mine.forEach(i=>{delete G.owner[i];delete G.upg[i]});log(`${p.name} закрывает студию и выбывает`)}}
+
+function endTurn(){if(G.pending||G.phase!=='act'||G.winner!=null)return;const p=cp();settle(p);
+  const alive=G.players.filter(q=>!q.out);if(alive.length===1){G.winner=G.players.indexOf(alive[0]);return finish()}
+  if(G.again&&!p.jail&&!p.out){G.phase='roll';log(`${p.name} ходит ещё раз — дубль`);return finish()}
+  let n=G.cur;for(let k=0;k<G.players.length*2;k++){n=(n+1)%G.players.length;const q=G.players[n];if(q.out)continue;if(q.skip){q.skip=0;log(`${q.name} пропускает ход`);continue}break}
+  G.cur=n;G.phase='roll';G.dbl=0;G.again=false;log(`Ходит ${cp().name}`);finish()}
+
+function leaveJail(p){p.jail=0;p.en=Math.min(5,p.en+1)}
+function payOut(){const p=cp();if(!p.jail||G.phase!=='roll')return;pay(p,null,50);leaveJail(p);log(`${p.name} платит 50 px и выходит отдохнувшим: +1 энергия`);finish()}
+
+function save(){try{localStorage.setItem(SAVE,JSON.stringify(G))}catch(e){}}
+function load(){try{const s=localStorage.getItem(SAVE);return s?JSON.parse(s):null}catch(e){return null}}
+function finish(){save();render()}
+
+/* ---------- Render ---------- */
+function pos(i){if(i<=10)return[11,11-i];if(i<=20)return[11-(i-10),1];if(i<=30)return[1,1+(i-20)];return[1+(i-30),11]}
+function dieHTML(v,rollCls){return`<div class="die ${rollCls}" aria-label="${v}">${[1,2,3,4,5,6,7,8,9].map(k=>`<b class="${PIPS[v].includes(k)?'on':''}"></b>`).join('')}</div>`}
+
+function renderBoard(){const b=$('#board');let h='';
+  CELLS.forEach((c,i)=>{const[r,col]=pos(i);const corner=[0,10,20,30].includes(i);const dc=c.d?DIST[c.d].c:'';
+    const o=G.owner[i];const oc=o!=null?G.players[o].color:'';const u=G.upg[i]||0;
+    const toks=G.players.map((p,pi)=>!p.out&&p.pos===i?`<b style="background:${p.color}" title="${esc(p.name)}"></b>`:'').join('');
+    const special=['tax','plat','serv'].includes(c.t)?' special':'';
+    h+=`<button class="cell t-${c.t}${corner?' corner':''}${special}${G.sel===i?' picked':''}" data-cell="${i}" style="grid-row:${r};grid-column:${col};${dc?`--dc:${dc};`:''}${oc?`--oc:${oc};`:''}" aria-label="${esc(c.n)}">
+      ${corner?'':'<span class="band"></span>'}<span class="lbl">${esc(c.n)}</span><span class="ab">${esc(c.ab)}</span>
+      ${c.note&&corner?`<span class="note">${esc(c.note)}</span>`:''}
+      ${c.p?`<span class="pr">${c.p}</span>`:''}${c.t==='tax'?`<span class="pr">−${c.amt}</span>`:''}
+      ${u?`<span class="pips">${u>=4?'<b class="mc"></b>':'<b></b>'.repeat(u)}</span>`:''}
+      <span class="own"></span><span class="tok">${toks}</span></button>`});
+  const p=cp();
+  h+=`<div class="center"><div class="sel"><i></i><i></i><i></i><i></i><h2>Пиксель-Сити</h2></div>
+    <div class="dice">${dieHTML(G.dice[0],G.anim?'roll':'')}${dieHTML(G.dice[1],G.anim?'roll':'')}</div>
+    <div class="who"><span class="swatch" style="background:${p.color}"></span>${esc(p.name)}</div>
+    <div class="last">${esc(G.log[0]||'')}</div></div>`;
+  b.innerHTML=h}
+
+function chip(d,miss){return`<span class="chip${miss?' miss':''}" style="--c:${DIST[d].c}">${DIST[d].n}</span>`}
+
+function renderPanel(){const p=cp(),gi=gradeIdx(p);const next=GRADES[Math.min(4,gi+1)];
+  const nextT=Math.round(next[1]*G.target);const prevT=Math.round(GRADES[gi][1]*G.target);
+  const pct=gi>=4?100:Math.max(0,Math.min(100,(p.rep-prevT)/(nextT-prevT)*100));
+  let actions='';
+  if(G.winner!=null){actions=''}
+  else if(G.pending){actions='<span class="muted">Сначала решите событие ниже.</span>'}
+  else if(G.phase==='roll'){
+    if(p.jail)actions=`<button class="btn primary" data-act="roll">Бросить на дубль</button><button class="btn" data-act="payout" ${p.px<50?'disabled':''}>Заплатить 50 px</button>`;
+    else actions=`<button class="btn primary" data-act="roll">Бросить кубики</button>`}
+  else actions=`<button class="btn primary" data-act="end">${G.again&&!p.jail?'Ещё бросок (дубль)':'Завершить ход'}</button>`;
+
+  let ev='';const pd=G.pending;
+  if(pd&&pd.k==='buy'){const c=CELLS[pd.i];const price=p.disc&&c.t==='skill'?Math.round(c.p/2):c.p;
+    const what=c.t==='skill'?`Навык района ${DIST[c.d].n}. Консультация для гостей — от ${Math.max(6,Math.round(c.p*.1))} px.`:c.t==='plat'?'Платформа: гости платят вам и дают +1 Репутацию.':'Сервис: гости платят сумму кубиков × 4.';
+    ev=`<section class="pane event"><div class="kind">${c.t==='skill'?'Свободный навык':c.t==='plat'?'Платформа':'Сервис'}</div><h4>${esc(c.n)}</h4><p>${what}${c.info?' '+esc(c.info):''}</p>
+      <div class="row"><button class="btn primary" data-act="buy" ${p.px<price?'disabled':''}>Освоить за ${price} px${p.disc&&c.t==='skill'?' (скидка)':''}</button><button class="btn" data-act="skip">Пропустить</button></div></section>`}
+  if(pd&&pd.k==='crisis'){const cr=CRISES[pd.id];
+    ev=`<section class="pane event crisis"><div class="kind">Кризис</div><h4>${esc(cr[0])}</h4><p>${esc(cr[1])}</p>
+      <button class="btn primary" data-act="crisis-ok">Принять</button></section>`}
+  if(pd&&pd.k==='card'){ev=`<section class="pane event ${pd.kind}"><div class="kind">${pd.kind==='insp'?'Вдохновение':'Заказ'}</div><h4>${esc(pd.title)}</h4><p>${esc(pd.text)}</p><button class="btn primary" data-act="close">Понятно</button></section>`}
+
+  const canAct=!G.pending&&G.winner==null;
+  const hand=p.hand.map((oid,k)=>{const[n,needs,px,rep]=ORDERS[oid];const pl=plan(G.cur,oid);
+    const chips=pl.rows.map(r=>`<span class="chip${r.st==='own'||r.st==='hired'?'':' miss'}" style="--c:${DIST[r.d].c}">${r.st==='own'||r.st==='hired'?'✓ ':''}${DIST[r.d].n}${r.st==='hired'?' · нанят':''}</span>`).join('');
+    const hires=pl.rows.filter(r=>r.st==='need').map(r=>r.owners.map(o=>`<button class="btn sm" data-act="hire" data-k="${k}" data-d="${r.d}" data-o="${o}" ${!canAct||p.px<HIRE?'disabled':''}>Нанять ${esc(G.players[o].name)} (${DIST[r.d].n}) · ${HIRE} px</button>`).join('')).join('');
+    const none=pl.rows.filter(r=>r.st==='none').map(r=>DIST[r.d].n);
+    let st;
+    if(none.length)st=`Навыка «${none.join(', ')}» пока нет ни у кого. Освойте его сами.`;
+    else if(!pl.ready)st='Не хватает навыка: освойте его или наймите владельца.';
+    else if(p.en<1)st='Навыки есть, но нет энергии. Пройдите круг, зайдите на Конференцию или выйдите из Выгорания.';
+    else st='Всё готово к сдаче.';
+    const btn=`<button class="btn sm primary" data-act="complete" data-k="${k}" ${!canAct||!pl.ready||p.en<1?'disabled':''}>Сдать заказ · −1 энергия</button>`;
+    return`<div class="order"><div class="top"><b>${esc(n)}</b><span class="rw">${px} px · +${rep}★</span></div>
+      <div class="chips">${chips}</div><div class="st">${esc(st)}</div>${hires?`<div class="row">${hires}</div>`:''}${btn}</div>`}).join('')||'<p class="muted" style="margin:0">Нет заказов. Встаньте на клетку «Заказ».</p>';
+
+  const ups=CELLS.map((c,i)=>i).filter(i=>CELLS[i].t==='skill'&&G.owner[i]===G.cur&&ownsDistrict(G.cur,CELLS[i].d)&&(G.upg[i]||0)<4)
+    .map(i=>{const u=G.upg[i]||0;return`<div class="u"><span>${esc(CELLS[i].n)} <span class="muted">· ${u?`Кейсов: ${u}`:'без прокачки'}</span></span><button class="btn sm" data-act="upgrade" data-i="${i}" ${!canAct||p.px<upgCost(i)?'disabled':''}>${u===3?'Мастер-класс':'Кейс'} ${upgCost(i)} px</button></div>`}).join('');
+
+  const players=G.players.map((q,qi)=>`<div class="pl${qi===G.cur?' now':''}${q.out?' out':''}"><span class="swatch" style="background:${q.color}"></span><span class="nm">${esc(q.name)} <span class="muted">${GRADES[gradeIdx(q)][0]}</span></span>
+    <span class="mono">${q.px} px</span><span class="mono">${q.rep}★</span><span class="mono" title="Энергия">${q.en}⚡</span></div>`).join('');
+
+  let info='';if(G.sel!=null){const c=CELLS[G.sel];const o=G.owner[G.sel];
+    info=`<section class="pane info"><h3>${esc(c.n)}</h3><dl>
+      ${c.d?`<dt>Район</dt><dd>${DIST[c.d].n}</dd>`:''}${c.p?`<dt>Цена</dt><dd class="mono">${c.p} px</dd>`:''}
+      ${OWNABLE.has(c.t)?`<dt>Владелец</dt><dd>${o!=null?esc(G.players[o].name):'свободно'}</dd>`:''}
+      ${c.t==='skill'&&o!=null?`<dt>Консультация</dt><dd class="mono">${rent(G.sel,7)} px</dd>`:''}
+      ${c.note?`<dt>Эффект</dt><dd>${esc(c.note)}</dd>`:''}${c.info?`<dt>Что это</dt><dd>${esc(c.info)}</dd>`:''}
+    </dl></section>`}
+
+  $('#panel').innerHTML=`
+    <section class="pane"><div class="turn-head"><span class="swatch" style="background:${p.color}"></span><h3>${esc(p.name)}</h3><span class="grade">${GRADES[gi][0]}</span></div>
+      <div class="stats"><div class="stat"><div class="eyebrow">Пиксели</div><div class="v">${p.px}</div></div>
+        <div class="stat"><div class="eyebrow">Репутация</div><div class="v">${p.rep}<span class="muted">/${G.target}</span></div></div>
+        <div class="stat"><div class="eyebrow">Энергия</div><div class="v">${p.en}<span class="muted">/5</span></div></div></div>
+      <div class="eyebrow">${gi>=4?'Высший грейд':`До грейда «${next[0]}»: ${Math.max(0,nextT-p.rep)}★`}</div><div class="bar"><i style="width:${pct}%"></i></div>
+      ${p.jail?'<p class="muted" style="margin:10px 0 0">Вы в Выгорании. Выбросьте дубль или заплатите 50 px. На выходе +1 энергия.</p>':''}
+      ${p.disc?'<p class="muted" style="margin:10px 0 0">Скидка 50% на следующий навык.</p>':''}
+      <div class="row" style="margin-top:12px">${actions}</div></section>
+    ${ev}
+    <section class="pane"><h3>Заказы на руке · ${p.hand.length}/${handLimit(p)}</h3><div class="orders">${hand}</div></section>
+    ${ups?`<section class="pane"><h3>Прокачка районов</h3><div class="upg">${ups}</div></section>`:''}
+    ${info}
+    <section class="pane"><h3>Студии</h3><div class="players">${players}</div></section>
+    <section class="pane"><h3>Журнал</h3><div class="log">${G.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div></section>
+    <section class="pane"><details class="rules"><summary>Правила коротко</summary><ul>
+      <li>Бросайте кубики, осваивайте свободные навыки. Освоенный навык даёт +1★, собранный район — ещё +3★.</li>
+      <li>Встали на чужой навык — платите консультацию. Платформы приносят владельцу +1★ за гостя.</li>
+      <li>Заказ сдаётся, только если в каждом нужном районе у вас есть навык или нанятый владелец (${HIRE} px, ему +1★). Сдача стоит 1 энергию.</li>
+      <li>Собрали район — ставьте Кейсы (+2★) и Мастер-класс (+5★): консультации дорожают.</li>
+      <li>Энергия (максимум 5): +1 за каждый пройденный круг, +1 на Конференции, +1 при выходе из Выгорания.</li>
+      <li>Грейды: Джуниор — 4 заказа на руке, Мидл — консультации +20 px, Сеньор — стипендия +100 px.</li>
+      <li>Первый, кто наберёт ${G.target}★, становится арт-директором и побеждает.</li></ul></details></section>`}
+
+function renderWin(){const w=$('#win');if(G.winner==null){w.hidden=true;return}const p=G.players[G.winner];
+  w.hidden=false;w.innerHTML=`<div class="card"><div class="eyebrow">Партия окончена</div><h2>${esc(p.name)} — арт-директор</h2>
+    <p class="muted" style="margin:0">${p.rep}★ Репутации, ${p.px} px. Своя студия открыта.</p>
+    <div class="row" style="justify-content:center"><button class="btn primary" data-act="restart">Новая игра</button><button class="btn" data-act="closewin">Посмотреть поле</button></div></div>`}
+
+function render(){renderBoard();G.anim=false;renderPanel();renderWin()}
+
+function show(){$('#setup').hidden=true;$('#game').hidden=false;$('#topbar').hidden=false;finish()}
+function toSetup(){G=null;try{localStorage.removeItem(SAVE)}catch(e){}$('#setup').hidden=false;$('#game').hidden=true;$('#topbar').hidden=true;$('#win').hidden=true;$('#resume').hidden=true}
+
+/* ---------- Events ---------- */
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act],[data-cell]');if(!t||!G)return;
+  if(t.dataset.cell!=null){const i=+t.dataset.cell;G.sel=G.sel===i?null:i;return render()}
+  const a=t.dataset.act;
+  ({roll,end:endTurn,buy,skip:skipBuy,'crisis-ok':resolveCrisis,hire:()=>hire(+t.dataset.k,t.dataset.d,+t.dataset.o),close:closeCard,
+    complete:()=>complete(+t.dataset.k),upgrade:()=>upgrade(+t.dataset.i),payout:payOut,
+    restart:toSetup,closewin:()=>{$('#win').hidden=true}})[a]?.()});
+$('#newgame').addEventListener('click',()=>{if($('#newgame').dataset.armed){delete $('#newgame').dataset.armed;$('#newgame').textContent='Новая игра';toSetup()}
+  else{$('#newgame').dataset.armed='1';$('#newgame').textContent='Точно? Нажмите ещё раз';setTimeout(()=>{if($('#newgame').dataset.armed){delete $('#newgame').dataset.armed;$('#newgame').textContent='Новая игра'}},3000)}});
+
+let count=4;const typed={};
+function renderNames(){$('#pcount').textContent=count;$('#names').innerHTML=Array.from({length:count},(_,i)=>`<label><span class="swatch" style="background:${PCOLORS[i]}"></span><input id="name-${i}" value="${esc(typed[i]??`Игрок ${i+1}`)}" maxlength="18" aria-label="Имя игрока ${i+1}"></label>`).join('')}
+$('#names').addEventListener('input',e=>{const m=e.target.id.match(/name-(\d)/);if(m)typed[m[1]]=e.target.value});
+$('#minus').addEventListener('click',()=>{count=Math.max(2,count-1);renderNames()});
+$('#plus').addEventListener('click',()=>{count=Math.min(8,count+1);renderNames()});
+$('#start').addEventListener('click',()=>{const names=Array.from({length:count},(_,i)=>($('#name-'+i).value||'').trim());newGame(names,document.querySelector('input[name=mode]:checked').value)});
+$('#resume').addEventListener('click',()=>{const s=load();if(s){G=s;G.hired=G.hired||{};show()}});
+document.addEventListener('keydown',e=>{if(!G||$('#game').hidden||['INPUT','BUTTON','SUMMARY'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();if(G.phase==='roll')roll();else endTurn()}});
+
+renderNames();
+const saved=load();if(saved&&saved.winner==null)$('#resume').hidden=false;
+</script>
+
+</body>
+</html>
